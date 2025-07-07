@@ -1,3 +1,4 @@
+python
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
@@ -11,12 +12,22 @@ import streamlit as st
 def analyze_claim(claim_data: Dict) -> Dict:
     """Extract features from claim data."""
     try:
+        claim_amount = float(claim_data.get('claim_amount', 0))
+        if claim_amount < 0:
+            raise ValueError("Claim amount cannot be negative")
+        customer_tenure = float(claim_data.get('customer_tenure', 0))
+        if customer_tenure < 0:
+            raise ValueError("Customer tenure cannot be negative")
+        previous_claims = float(claim_data.get('previous_claims', 0))
+        if previous_claims < 0:
+            raise ValueError("Previous claims cannot be negative")
         features = {
-            'claim_amount': float(claim_data.get('claim_amount', 0)),
+            'claim_id': claim_data.get('claim_id', 'unknown'),
+            'claim_amount': claim_amount,
             'claim_severity': {'low': 1, 'medium': 2, 'high': 3}.get(claim_data.get('severity', 'low').lower(), 1),
-            'customer_tenure': float(claim_data.get('customer_tenure', 0)),
+            'customer_tenure': customer_tenure,
             'claim_type': claim_data.get('claim_type', 'unknown'),
-            'previous_claims': float(claim_data.get('previous_claims', 0)),
+            'previous_claims': previous_claims,
         }
         return features
     except Exception as e:
@@ -28,19 +39,21 @@ class CostPredictor:
         self.model = RandomForestRegressor(n_estimators=100, random_state=42)
         self.scaler = StandardScaler()
         self.is_trained = False
+        self.feature_names = ['claim_amount', 'claim_severity', 'customer_tenure', 'previous_claims']
 
     def train(self, X: pd.DataFrame, y: pd.Series):
         """Train the cost prediction model."""
-        X_scaled = self.scaler.fit_transform(X)
+        X_scaled = self.scaler.fit_transform(X[self.feature_names])
         self.model.fit(X_scaled, y)
         self.is_trained = True
 
-    def predict(self, features: Dict) -> Tuple[float, float]:
+    def predict(self, features: Dict) -> Tuple[float, Tuple[float, float]]:
         """Predict litigation cost and settlement range."""
         if not self.is_trained:
             raise ValueError("Model not trained.")
-        X = pd.DataFrame([features])
-        X_scaled = self.scaler.transform(X)
+        # Filter only the features used in training
+        X = pd.DataFrame([{k: v for k, v in features.items() if k in self.feature_names}])
+        X_scaled = self.scaler.transform(X[self.feature_names])
         litigation_cost = self.model.predict(X_scaled)[0]
         settlement_range = (litigation_cost * 0.8, litigation_cost * 1.2)  # ±20% range
         return litigation_cost, settlement_range
