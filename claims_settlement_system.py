@@ -537,7 +537,7 @@ def run_dashboard():
                 st.success("✅ Analysis completed successfully! Settlement recommendation generated.")
                 
             except Exception as e:
-                st.error(f"❌ Error processing claim: {str(e)}")
+                st.error(f"❌ Error Processing claim: {str(e)}")
 
 if __name__ == "__main__":
     run_dashboard()
